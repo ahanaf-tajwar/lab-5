@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Building a Pitch Set Composer — Lab 5 Blog Post</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Blog-specific layout on top of the shared stylesheet */
+    .blog-wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 48px 32px 96px;
+      font-size: 19px;
+      line-height: 1.65;
+    }
+    .blog-wrap h2 {
+      font-family: var(--font-display);
+      font-style: italic;
+      font-weight: 500;
+      font-size: 32px;
+      margin: 48px 0 16px;
+      color: var(--paper);
+    }
+    .blog-wrap p {
+      margin-bottom: 20px;
+      color: var(--paper);
+    }
+    .blog-wrap .lede {
+      font-size: 22px;
+      font-style: italic;
+      color: var(--paper-dim);
+      border-left: 2px solid var(--amber);
+      padding-left: 20px;
+      margin: 32px 0;
+    }
+    .blog-wrap code {
+      font-family: var(--font-mono);
+      font-size: 16px;
+      background: var(--ink-2);
+      padding: 2px 6px;
+      border-radius: 2px;
+      color: var(--amber);
+      border: var(--border);
+    }
+    .blog-wrap pre {
+      background: var(--ink-2);
+      border: var(--border);
+      border-radius: 2px;
+      padding: 20px;
+      overflow-x: auto;
+      margin: 20px 0;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .blog-wrap pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--paper);
+      font-size: 14px;
+    }
+    .blog-wrap a {
+      color: var(--amber);
+      text-decoration: none;
+      border-bottom: 1px solid var(--amber-soft);
+    }
+    .blog-wrap a:hover { border-bottom-color: var(--amber); }
+    .try-it-box {
+      background: var(--ink-2);
+      border: var(--border-strong);
+      border-radius: 2px;
+      padding: 28px;
+      margin: 40px 0;
+      text-align: center;
+    }
+    .try-it-box .btn-primary {
+      display: inline-block;
+      text-decoration: none;
+      border-bottom: none;
+    }
+    .byline {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--paper-dim);
+      margin-bottom: 48px;
+    }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+
+  <header class="masthead">
+    <div class="masthead-left">
+      <div class="opus">Lab · 05</div>
+      <h1>Notes on a Pitch Set Composer</h1>
+      <p class="subtitle">What I learned building a twelve-tone sequencer from scratch.</p>
+    </div>
+    <div class="masthead-right">
+      <div class="meta-line"><span>COMS 3430</span><span>·</span><span>Spring 2026</span></div>
+      <div class="meta-line"><span>Automated Composition</span></div>
+    </div>
+  </header>
+
+  <article class="blog-wrap">
+
+    <div class="byline">By Ahanaf · Spring 2026</div>
+
+    <p class="lede">
+      Pitch set theory looks like math and feels like music. Three operations, modular arithmetic, twelve integers. You can write the entire theoretical apparatus on an index card, and yet it was enough for Schoenberg to build a new century on.
+    </p>
+
+    <p>
+      For Lab 5, I built a browser-based composer that generates music by applying pitch set operations to a starting row. The user picks a set of pitch classes, the program randomly applies transpositions, inversions, and retrogrades, and a three-mode Web Audio synth plays the result. You can <a href="index.html">try the composer here</a>.
+    </p>
+
+    <p>
+      This post is about what I learned while writing the code. I came in thinking I understood pitch set theory because I understood the math. By the end, I had a different appreciation for why these operations are specifically useful, and why they produce music that sounds like anything at all.
+    </p>
+
+    <h2>Why these three operations?</h2>
+
+    <p>
+      The lecture presents transpose, retrograde, and inversion as a given. In class, I treated them the way you treat the axioms at the start of a proof. They are the starting point, you work with them, you do not question them.
+    </p>
+
+    <p>
+      Writing the code forced me to notice something the slides mention but do not dwell on. These are exactly the operations that preserve the interval structure of a sequence. Transpose shifts every interval by zero (the intervals between consecutive notes do not change). Retrograde flips the sequence of intervals. Inversion negates every interval. Any other operation you might imagine, like randomly permuting the set, or mapping it through some other function, loses the one thing that makes the original recognizable as a musical idea.
+    </p>
+
+    <p>
+      That recognition is the point. When you hear a transformed version of the row in a 12-tone piece, you are supposed to feel a connection to the original, even if you cannot consciously identify the operation. The operations are not arbitrary. They are the only operations that let a composer generate variety while keeping a piece coherent.
+    </p>
+
+    <h2>Inversion is surprisingly tricky</h2>
+
+    <p>
+      Transpose and retrograde are both about one line of code. Inversion is one line of code with a decision embedded in it.
+    </p>
+
+    <pre><code>const invert = (set, axis) =&gt; {
+  const a = axis === undefined ? set[0] : axis;
+  return set.map(p =&gt; mod12(2 * a - p));
+};</code></pre>
+
+    <p>
+      The formula <code>(2a - p) mod 12</code> reflects every pitch around an axis <code>a</code>. The question is, what is <code>a</code>? The lecture's example <code>{0, 2, 4, 5} → [0, 10, 8, 7]</code> fixes the first element and flips everything else around it. That is inversion around <code>set[0]</code>. But you could just as legitimately invert around 0 absolute (which happens to be the same thing here because <code>set[0] = 0</code>), or around the average of the set, or around any other reference.
+    </p>
+
+    <p>
+      Different inversion axes produce different melodies. Musically they are all valid. I ended up defaulting to the lecture convention (fixed first note) because it is what the examples imply, but the more general version was useful for building the twelve-tone matrix, where you want each row to start on a specific pitch.
+    </p>
+
+    <p>
+      This is the kind of thing you only notice when you have to write the function. On paper, "invert" is a single word. In code, it is a parameter choice with compositional consequences.
+    </p>
+
+    <h2>The 12-tone matrix as a debugging tool</h2>
+
+    <p>
+      The classic 12-tone matrix is a 12x12 grid. Rows are the twelve transpositions of the prime row. Columns are the twelve inversions. Read left to right, you get P forms. Read right to left, you get R forms. Read top to bottom, you get I forms. Read bottom to top, you get RI forms. Every transformation a composer cares about is one of 48 lines on this grid.
+    </p>
+
+    <p>
+      I added the matrix to the interface as a visualization, but it ended up being more useful as a sanity check. After I wrote the operations, the matrix had to have three specific properties if everything was correct: the top row has to equal the input, the diagonal has to be all zeros, and the first column has to equal the inversion of the input around its first element. Seeing those three properties appear automatically when I plugged in <code>{0, 2, 4, 5}</code> was the moment I trusted my math.
+    </p>
+
+    <p>
+      Making each cell clickable (play that transposition as a little phrase) was a late addition. It is not theoretically necessary, but once it was in, the matrix stopped feeling like a reference chart and started feeling like a keyboard. You can browse through the transformations by ear, which is closer to how a composer actually uses one.
+    </p>
+
+    <h2>Atonality sounds less atonal with a good envelope</h2>
+
+    <p>
+      This was the surprise. I expected pitch set compositions to sound harsh. Twelve-tone music has that reputation, and the sequences my code was generating are all over the chromatic scale with no tonal center.
+    </p>
+
+    <p>
+      But the actual perceived harshness has less to do with the notes than with how the notes are played. With a fast attack and no release, every note jabs. With a slower attack, some sustain, and a longer release, the same exact pitch sequence sounds meditative. Switching the synth from additive to FM with a high modulation depth gives it a bell-like quality that makes atonal intervals sound like windchimes instead of wrong notes.
+    </p>
+
+    <p>
+      Timbre is doing at least as much work as pitch here. That is probably obvious to anyone who has spent time with post-war electronic music, but it was not obvious to me until I built the thing and heard it both ways.
+    </p>
+
+    <h2>Operation weights as a hidden composition layer</h2>
+
+    <p>
+      The lab asks for random application of the operations. I added sliders to bias the randomness, so you can turn up retrogrades, turn down transpositions, and so on. I assumed this would be a minor UI nicety.
+    </p>
+
+    <p>
+      In practice, the weights are the most expressive control in the whole interface. Heavy on transposition produces music that sounds like it is walking somewhere. Heavy on inversion produces music that sounds like it is answering itself. Heavy on retrograde produces palindromic phrases that feel like a room folding in on itself. Each operation has its own musical personality, and you only hear that personality in isolation when the other operations are turned down.
+    </p>
+
+    <p>
+      If I were taking this further, I would replace uniform random selection entirely. A simple Markov chain over operation choices would already sound more composed, because real composers do not pick transformations uniformly at random. They tend to answer a transposition with an inversion, or follow a retrograde with a prime. The operations have conventional conversational patterns that would be fun to learn from actual scores.
+    </p>
+
+    <h2>What I would change</h2>
+
+    <p>
+      The biggest limitation is that every segment is the same length as the input set. If you give it a four-note row, every bar is four notes. Real compositions fragment the row, repeat subsets, skip notes, and combine transformations in ways my generator does not. Adding a rhythmic layer (durations, rests, accents) and a subset-selection mechanism would probably be the next step.
+    </p>
+
+    <p>
+      I also did not implement normal form or prime form calculation. The lab says we can assume input is in normal form, so I took the shortcut, but computing prime form correctly is a nice little algorithm and I am curious how it would feel to have the tool suggest equivalent sets.
+    </p>
+
+    <h2>Closing</h2>
+
+    <p>
+      The most useful thing about writing an algorithmic composer from scratch is that it changes your relationship to the theory. Before this lab, pitch set theory was something I could follow on paper. After, it is something I can manipulate by ear. The operations stopped being abstract when I could hear the difference between <code>T5</code> and <code>T5I</code> applied to the same row.
+    </p>
+
+    <p>
+      I do not think I will become a serialist. But I understand now why a composer would reach for these tools, and I understand why the math holds up after a century. The operations are just the right size. Small enough to reason about, large enough to make something that sounds like music.
+    </p>
+
+    <div class="try-it-box">
+      <p style="font-style: italic; color: var(--paper-dim); margin-bottom: 16px;">
+        Try generating your own compositions.
+      </p>
+      <a href="index.html" class="btn btn-primary">Open the composer →</a>
+    </div>
+
+  </article>
+
+  <footer class="colophon">
+    <span>Pitch Set Composer</span>
+    <span>—</span>
+    <span>Lab 5 Blog Post</span>
+    <span>—</span>
+    <span>Ahanaf · Spring 2026</span>
+  </footer>
+
+</body>
+</html>
